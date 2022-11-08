@@ -7,22 +7,22 @@ Answer = TypedDict('答え情報', {'answer': str, 'text': str, 'link': str, 're
 
 
 def main():
-    print('### 試験スクレイパー v1')
-    print('[+] クリップボードにワードが書き込まれると、自動的に検索します。\n')
+    print('📄 ✍️  試験スクレイパー v1.1')
+    print('🌟 > クリップボードにワードが書き込まれると、自動的に検索します。\n')
     while True:
         try:
-            #word = input('[Word]: ') # 入力モードにしたい場合はここをコメントアウト
+            #word = input('[Word]: ') # 入力モードにしたい場合はここのコメントアウトを解除
             word = pyperclip.waitForNewPaste()
-            print('[?] ' + word + '\n')
+            print('🔎 > ' + word + '\n')
 
             ans_info = get_answer_withword(word)
             rank = 1
             for ans in ans_info:
-                print('    [' + str(rank) + '] ' + ('(推奨) ' if ans['recommend'] else '') + ans['link'])
-                print('    [' + str(rank) + '] ' + ans['answer'] + ': ' + ans['text'] + '\n')
+                print('    (' + str(rank) + ') ' + ('[完全一致✨] ' if ans['recommend'] else '') + ans['link'])
+                print('    (' + str(rank) + ') ' + ans['answer'] + ': ' + ans['text'] + '\n')
                 rank += 1
         except Exception as e:
-            print('    [-] ' + str(e))
+            print('    ❌ > ' + str(e))
         except KeyboardInterrupt:
             break
         print('')
@@ -95,7 +95,6 @@ def get_answer_withword(word: str) -> list[Answer]:
     for ans in ans_info:
         if ans['recommend']:
             ans_info_recommends.append(ans)
-            break
 
     if len(ans_info_recommends) <= 0:
         ans_info_recommends = ans_info
