@@ -68,7 +68,6 @@ def parse_itsiken_webpage(request_text: str, word: str, link: str) -> Answer:
         ans_text_el = soup.select('body > table:nth-child(2) > tr > td > table > tr:nth-child('+ str(ANS_SELECT_NUM[ans] + 1) +') > td:nth-child(2)')
         ans_text = ans_text_el[0].text.strip()
         
-        print(link)
         return {'answer': ans, 'text': ans_text, 'link': link, 'recommend': word in question}
     except:
         return None
