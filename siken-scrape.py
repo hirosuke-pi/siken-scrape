@@ -4,10 +4,14 @@ from bs4 import BeautifulSoup
 from typing import TypedDict
 
 Answer = TypedDict('答え情報', {'answer': str, 'text': str, 'link': str, 'recommend': bool})
-
+ANS_SELECT_NUM = {'ア': 0, 'イ': 1, 'ウ': 2, 'エ': 3, 'オ': 4}
+PULL_PAGE_KEYWORDS = {
+    'siken': '-siken.com',
+    'itsiken': 'itsiken.com'
+}
 
 def main():
-    print('📄 ✍️  試験スクレイパー v1.1')
+    print('📄 ✍️  試験スクレイパー v1.2')
     print('🌟 > クリップボードにワードが書き込まれると、自動的に検索します。\n')
     while True:
         try:
@@ -43,26 +47,52 @@ def get_googlesearch_rank_withlink(search_word: str, page: int = 10) -> list[str
     return ranks_link
 
 
+def parse_questions(request: requests.Response, word: str, link: str) -> Answer:
+    word = word.replace('、', '，').strip()
+    if PULL_PAGE_KEYWORDS['siken'] in link:
+        return parse_siken_webpage(request.text, word, link)
+    elif PULL_PAGE_KEYWORDS['itsiken'] in link:
+        request.encoding = 'shift-jis'
+        return parse_itsiken_webpage(request.text, word, link)
+    else:
+        return None
+
+def parse_itsiken_webpage(request_text: str, word: str, link: str) -> Answer:
+    try:
+        soup = BeautifulSoup(request_text, "html.parser")
+        question_el = soup.select('body > table:nth-child(2) > tr > td > p:nth-child(1)')
+        question = question_el[0].text.strip()
+        ans_el = soup.select('#hideshow2 > p:nth-child(1) > b > u')
+        ans = ans_el[0].text.split('　')[1]
+
+        ans_text_el = soup.select('body > table:nth-child(2) > tr > td > table > tr:nth-child('+ str(ANS_SELECT_NUM[ans] + 1) +') > td:nth-child(2)')
+        ans_text = ans_text_el[0].text.strip()
+        
+        print(link)
+        return {'answer': ans, 'text': ans_text, 'link': link, 'recommend': word in question}
+    except:
+        return None
+
+
 def parse_siken_webpage(request_text: str, word: str, link: str) -> Answer:
     ANS_SELECT = {'ア': 'a', 'イ': 'i', 'ウ': 'u', 'エ': 'e', 'オ': 'o'}
-    ANS_SELECT_NUM = {'ア': 0, 'イ': 1, 'ウ': 2, 'エ': 3, 'オ': 4}
-    word = word.replace('、', '，')
-
+    
     try:
         soup = BeautifulSoup(request_text, "html.parser")
         ans_el = soup.select('#answerChar')
+        question = soup.select('main')[0].text
         ans = ''
-        ansText = ''
+        ans_text = ''
 
         if len(ans_el) > 0:
             ans = ans_el[0].text
-            ansText = soup.select('#select_' + ANS_SELECT[ans])[0].text
+            ans_text = soup.select('#select_' + ANS_SELECT[ans])[0].text
         else:
             ans = soup.select('#true')[0].text
-            ansText = soup.select('.selectList')[
+            ans_text = soup.select('.selectList')[
                 0].contents[ANS_SELECT_NUM[ans]].text
 
-        return {'answer': ans, 'text': ansText, 'link': link, 'recommend': word in soup.select('main')[0].text}
+        return {'answer': ans, 'text': ans_text, 'link': link, 'recommend': word in question}
     except:
         return None
 
@@ -74,8 +104,9 @@ def get_answer_withword(word: str) -> list[Answer]:
 
     ans_links = []
     for link in ranks_link:
-        if '-siken.com' in link:
-            ans_links.append(link.split('&sa=')[0])
+        for key, url in PULL_PAGE_KEYWORDS.items():
+            if url in link:
+                ans_links.append(link.split('&sa=')[0])
 
     if len(ans_links) <= 0:
         raise Exception('ランキング内に試験情報が見つかりません。')
@@ -83,7 +114,7 @@ def get_answer_withword(word: str) -> list[Answer]:
     ans_info = []
     for ans_link in ans_links:
         request = requests.get(ans_link)
-        ans = parse_siken_webpage(request.text, word, ans_link)
+        ans = parse_questions(request, word, ans_link)
         if ans is None:
             continue
         ans_info.append(ans)
